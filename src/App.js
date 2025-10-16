@@ -15,6 +15,7 @@ function App() {
   const strokesRef = useRef([]);
   const currentPathRef = useRef([]);
 
+  // Calculate image dimensions to fit inside screen with "contain"
   const calculateContainDims = (img) => {
     const windowW = window.innerWidth;
     const windowH = window.innerHeight;
@@ -39,9 +40,9 @@ function App() {
     return { width, height, offsetX, offsetY };
   };
 
+  // Resize canvas to match image
   const resizeCanvas = () => {
     if (!imgRef.current) return;
-
     const canvas = canvasRef.current;
     const { width, height, offsetX, offsetY } = calculateContainDims(imgRef.current);
 
@@ -65,19 +66,22 @@ function App() {
     return () => window.removeEventListener("resize", resizeCanvas);
   }, []);
 
-  const getTouchPos = (touchEvent) => {
-    const touch = touchEvent.touches[0];
-    return { clientX: touch.clientX, clientY: touch.clientY };
+  const addPoint = (e) => {
+    const { offsetX, offsetY } = scaledDimsRef.current;
+    const x = e.clientX - offsetX;
+    const y = e.clientY - offsetY;
+    currentPathRef.current.push({ x, y });
   };
 
-  const startDrawing = (e, isTouch = false) => {
+  const startDrawing = (e) => {
+    e.preventDefault();
     setIsDrawing(true);
     currentPathRef.current = [];
-    const evt = isTouch ? getTouchPos(e) : e;
-    addPoint(evt);
+    addPoint(e);
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = (e) => {
+    e?.preventDefault();
     if (!isDrawing) return;
     setIsDrawing(false);
 
@@ -88,13 +92,6 @@ function App() {
 
     currentPathRef.current = [];
     drawAll();
-  };
-
-  const addPoint = (e) => {
-    const { offsetX, offsetY } = scaledDimsRef.current;
-    const x = e.clientX - offsetX;
-    const y = e.clientY - offsetY;
-    currentPathRef.current.push({ x, y });
   };
 
   const drawAll = () => {
@@ -113,7 +110,7 @@ function App() {
       // Shadow
       ctx.save();
       ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "rgba(126, 28, 7, 0.7)";
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
       ctx.beginPath();
       ctx.moveTo(path[0].x + 5, path[0].y + 5);
       for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x + 5, path[i].y + 5);
@@ -131,15 +128,15 @@ function App() {
     }
   };
 
-  const handleMove = (e, isTouch = false) => {
-    const evt = isTouch ? getTouchPos(e) : e;
-    setKnifePos({ x: evt.clientX, y: evt.clientY });
+  const handleMove = (e) => {
+    e.preventDefault();
+    setKnifePos({ x: e.clientX, y: e.clientY });
 
     if (!isDrawing) return;
-    addPoint(evt);
+    addPoint(e);
     drawAll();
 
-    // thin line preview
+    // thin black line preview while dragging
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     ctx.globalCompositeOperation = "source-over";
@@ -184,22 +181,10 @@ function App() {
       <canvas
         ref={canvasRef}
         style={{ position: "absolute", zIndex: 1, cursor: "none" }}
-        onMouseDown={startDrawing}
-        onMouseMove={handleMove}
-        onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
-        onTouchStart={(e) => {
-          e.preventDefault();
-          startDrawing(e, true);
-        }}
-        onTouchMove={(e) => {
-          e.preventDefault();
-          handleMove(e, true);
-        }}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          stopDrawing();
-        }}
+        onPointerDown={startDrawing}
+        onPointerMove={handleMove}
+        onPointerUp={stopDrawing}
+        onPointerLeave={stopDrawing}
       />
 
       {/* Knife */}
